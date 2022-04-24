@@ -1,0 +1,32 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>systems.manifold</groupId>
+    <artifactId>manifold-simple-query</artifactId>
+    <packaging>pom</packaging>
+    <version>0.1-SNAPSHOT</version>
+
+    <name>Manifold :: Simple Query</name>
+    <description>
+        A simple example demonstrating how Manifold's ICompilerComponent SPI can be used to transform Java's AST.
+    </description>
+    <url>http://manifold.systems/</url>
+
+    <modules>
+        <module>manifold-simple-query-api</module>
+        <module>manifold-simple-query-ast-transformer</module>
+        <module>manifold-simple-query-processor</module>
+    </modules>
+
+    <properties>
+        <manifold-version>2022.1.8-SNAPSHOT</manifold-version>
+        <!-- Manifold supports Java versions 8 - 17 (current release)  -->
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+        <!-- Use this if compiling with Java 9 or later and targeting an older Java version  -->
+        <!-- <maven.compiler.release>6</maven.compiler.release> -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+</project>
