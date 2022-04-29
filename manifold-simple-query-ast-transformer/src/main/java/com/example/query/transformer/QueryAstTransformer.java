@@ -23,6 +23,8 @@ import manifold.internal.javac.IDynamicJdk;
 import manifold.internal.javac.JavacPlugin;
 import manifold.internal.javac.TypeProcessor;
 
+import java.util.ArrayList;
+
 import static manifold.api.type.ICompilerComponent.InitOrder.*;
 
 /**
@@ -153,7 +155,7 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
       List<Type> paramTypes = fa.sym.type.getParameterTypes();
       if( "where".equals( fa.getIdentifier().toString() ) &&
         paramTypes.length() == 1 && _types.isSameType( paramTypes.get( 0 ), _symtab.booleanType ) &&
-        _types.isAssignable( fa.selected.type, _types.erasure( _querySym.type ) ) )
+        isQueryType( fa.selected.type ) )
       {
         processQueryMethodCallArgs( tree );
 
@@ -167,7 +169,7 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
       }
       else if( "orderBy".equals( fa.getIdentifier().toString() ) &&
         paramTypes.length() == 1 && _types.isSameType( paramTypes.get( 0 ), _symtab.objectType ) &&
-        _types.isAssignable( fa.selected.type, _types.erasure( _querySym.type ) ) )
+        isQueryType( fa.selected.type ) )
       {
         processQueryMethodCallArgs( tree );
 
@@ -203,6 +205,19 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
       {
         // translate to new MethodCallExpression()
 
+        List<Symbol.VarSymbol> parameters = ((Symbol.MethodSymbol)fa.sym).getParameters();
+        ArrayList<JCLiteral> paramTypes = new ArrayList<>();
+        for( Symbol.VarSymbol param : parameters )
+        {
+          JCLiteral typeNameExpr = _make.Literal( param.type.tsym.getQualifiedName().toString() );
+          typeNameExpr.pos = tree.pos;
+          paramTypes.add( typeNameExpr );
+        }
+        JCTree.JCNewArray paramTypesArray = _make.NewArray(
+          _make.Type( _symtab.classType ), List.nil(), List.from( paramTypes ) );
+        paramTypesArray.setType( new Type.ArrayType( _symtab.stringType, _symtab.arrayClass ) );
+        paramTypesArray.pos = tree.pos;
+
         JCNewArray argsArray = _make.NewArray(
           _make.Type( _symtab.objectType ), List.nil(), List.from( tree.args ) );
         argsArray.setType( new Type.ArrayType( _symtab.objectType, _symtab.arrayClass ) );
@@ -210,9 +225,8 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
         JCLiteral nameExpr = _make.Literal( fa.name.toString() );
         nameExpr.pos = tree.pos;
         JCExpression constructMethodCallExpr = _make.Create( getMethodCallExprCtor(),
-          List.of( fa.selected, nameExpr, argsArray ) );
+          List.of( fa.selected, nameExpr, paramTypesArray, argsArray ) );
         result = constructMethodCallExpr;
-//        result.type = tree.type;
         result.pos = tree.pos;
       }
     }
@@ -298,8 +312,7 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
 
     // transform Entity field access to Reference
 
-    if( tree.selected.type instanceof Type.ClassType &&
-      _types.isAssignable( tree.selected.type, _entitySym.type ) )
+    if( isEntityType( tree.selected.type ) )
     {
       String entityTypeName = tree.selected.type.tsym.getQualifiedName().toString();
       String memberName = tree.getIdentifier().toString();
@@ -327,7 +340,7 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
   }
   private boolean isType( Type type, Type classType )
   {
-    return type instanceof Type.ClassType && _types.isAssignable( type, classType );
+    return type instanceof Type.ClassType && _types.isAssignable( type, _types.erasure( classType ) );
   }
 
   private Symbol.MethodSymbol getReferenceExprCtor()
@@ -351,7 +364,7 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
     for( Symbol s : IDynamicJdk.instance().getMembers( _methodCallExprSym, Symbol::isConstructor ) )
     {
       Symbol.MethodSymbol ctor = (Symbol.MethodSymbol)s;
-      if( ctor.params.length() == 3 )
+      if( ctor.params.length() == 4 )
       {
         return ctor;
       }

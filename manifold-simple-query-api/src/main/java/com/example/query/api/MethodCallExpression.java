@@ -6,12 +6,14 @@ public class MethodCallExpression implements Expression
 {
   @val Expression receiver;
   @val String methodName;
+  @val String[] paramTypes;
   @val Expression[] args;
 
-  public MethodCallExpression( Expression receiver, String methodName, Expression[] args )
+  public MethodCallExpression( Expression receiver, String methodName, String[] paramTypes, Expression[] args )
   {
     this.receiver = receiver;
     this.methodName = methodName;
+    this.paramTypes = paramTypes;
     this.args = args;
   }
 

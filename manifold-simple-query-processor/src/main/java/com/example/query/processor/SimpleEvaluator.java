@@ -43,7 +43,7 @@ public class SimpleEvaluator implements ExpressionVisitor
   public Object visitMethodCallExpression( MethodCallExpression expr )
   {
     Object receiverValue = expr.receiver.accept( this );
-    return FunctionCallHandler.invoke( receiverValue, expr.methodName, expr.args );
+    return FunctionCallHandler.invoke( receiverValue, expr.methodName, expr.paramTypes, expr.args );
   }
 
   @Override

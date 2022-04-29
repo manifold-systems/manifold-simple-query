@@ -6,7 +6,7 @@ import manifold.ext.props.rt.api.val;
 public class Person extends Entity
 {
   @val String name;
-  @val Integer age;
+  @val int age;
   @val Gender gender;
   @val boolean deceased;
 
