@@ -5,6 +5,7 @@ import manifold.ext.props.rt.api.val;
 import manifold.rt.api.util.ManObjectUtil;
 import manifold.util.ReflectUtil;
 
+import java.util.Arrays;
 import java.util.function.Function;
 
 /**
@@ -36,6 +37,13 @@ public class SimpleEvaluator implements ExpressionVisitor
       return method.invoke();
     }
     return ReflectUtil.field( value, expr.memberName ).get();
+  }
+
+  @Override
+  public Object visitMethodCallExpression( MethodCallExpression expr )
+  {
+    Object receiverValue = expr.receiver.accept( this );
+    return FunctionCallHandler.invoke( receiverValue, expr.methodName, expr.args );
   }
 
   @Override
