@@ -5,7 +5,6 @@ import manifold.ext.props.rt.api.val;
 import manifold.rt.api.util.ManObjectUtil;
 import manifold.util.ReflectUtil;
 
-import java.util.Arrays;
 import java.util.function.Function;
 
 /**
@@ -30,13 +29,12 @@ public class SimpleEvaluator implements ExpressionVisitor
   @Override
   public Object visitReferenceExpression( ReferenceExpression expr )
   {
-    Entity value = valueSupplier.apply( expr.typeName );
-    ReflectUtil.LiveMethodRef method = ReflectUtil.WithNull.method( value, expr.memberName );
-    if( method != null )
+    Entity entityValue = valueSupplier.apply( expr.typeName );
+    if( expr.memberKind == MemberKind.Method )
     {
-      return method.invoke();
+      return ReflectUtil.method( entityValue, expr.memberName ).invoke();
     }
-    return ReflectUtil.field( value, expr.memberName ).get();
+    return ReflectUtil.field( entityValue, expr.memberName ).get();
   }
 
   @Override
@@ -65,6 +63,7 @@ public class SimpleEvaluator implements ExpressionVisitor
     }
   }
 
+  @SuppressWarnings( {"unchecked", "rawtypes"} )
   @Override
   public Object visitBinaryExpression( BinaryExpression expr )
   {

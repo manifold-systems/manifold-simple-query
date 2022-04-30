@@ -13,7 +13,7 @@ import static org.junit.Assert.*;
 
 public class TestMe
 {
-  private ArrayList<Person> data = new ArrayList<Person>()
+  private final ArrayList<Person> data = new ArrayList<Person>()
   {{
     add( new Person( "Skipper", 4, male, false ) );
     add( new Person( "Pokechop", 3, male, false ) );
@@ -48,10 +48,28 @@ public class TestMe
   }
 
   @Test
-  public void functionCallTest()
+  public void simpleFunctionCallTest()
   {
     Query<Person> query = Person.query( (p, q) -> q
       .where( p.age >= 0 && p.name.contains( "S" ) ) // using contains() method
+      .orderBy( p.name ) );
+    Iterable<Person> results = query.run( data );
+    Iterator<Person> iterator = results.iterator();
+    assertTrue( iterator.hasNext() );
+    assertEquals( "Skeeter", iterator.next().name );
+    assertTrue( iterator.hasNext() );
+    assertEquals( "Skipper", iterator.next().name );
+    assertTrue( iterator.hasNext() );
+    assertEquals( "Smokey", iterator.next().name );
+    System.out.println( results );
+    System.out.println( query );
+  }
+
+  @Test
+  public void complextFunctionCallTest()
+  {
+    Query<Person> query = Person.query( (p, q) -> q
+      .where( p.age >= 0 && p.name.toLowerCase().contains( "s" ) ) // using toLowerCase() with contains()
       .orderBy( p.name ) );
     Iterable<Person> results = query.run( data );
     Iterator<Person> iterator = results.iterator();

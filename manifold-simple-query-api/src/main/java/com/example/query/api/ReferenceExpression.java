@@ -2,22 +2,21 @@ package com.example.query.api;
 
 import manifold.ext.props.rt.api.val;
 import manifold.rt.api.util.ManClassUtil;
-import manifold.util.ReflectUtil;
-
-import java.util.function.Function;
 
 /**
- * Direct entity property references are transformed to instances of this class.
+ * A direct entity property reference is transformed to an instance of this class.
  */
 public class ReferenceExpression implements Expression
 {
   @val String typeName;
   @val String memberName;
+  @val MemberKind memberKind;
 
-  public ReferenceExpression( String typeName, String memberName )
+  public ReferenceExpression( String typeName, String memberName, MemberKind kind )
   {
     this.typeName = typeName;
     this.memberName = memberName;
+    this.memberKind = kind;
   }
 
   @Override
@@ -28,6 +27,7 @@ public class ReferenceExpression implements Expression
 
   public String toString()
   {
-    return ManClassUtil.getShortClassName( typeName ) + "#" + memberName;
+    return ManClassUtil.getShortClassName( typeName ) + "#" +
+      memberName + (memberKind == MemberKind.Method ? "()" : "");
   }
 }
