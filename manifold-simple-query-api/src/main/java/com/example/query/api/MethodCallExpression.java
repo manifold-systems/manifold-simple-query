@@ -2,15 +2,16 @@ package com.example.query.api;
 
 import manifold.ext.props.rt.api.val;
 
-public class MethodCallExpression implements Expression
+public class MethodCallExpression extends Expression
 {
   @val Expression receiver;
   @val String methodName;
   @val String[] paramTypes;
-  @val Expression[] args;
+  @val Object[] args;
 
-  public MethodCallExpression( Expression receiver, String methodName, String[] paramTypes, Expression[] args )
+  public MethodCallExpression( Expression receiver, String methodName, String[] paramTypes, Object[] args, String type )
   {
+    super( type );
     this.receiver = receiver;
     this.methodName = methodName;
     this.paramTypes = paramTypes;
@@ -20,7 +21,7 @@ public class MethodCallExpression implements Expression
   @Override
   public Object accept( ExpressionVisitor visitor )
   {
-    return visitor.visitMethodCallExpression( this );
+    return visitor.visitMethodCall( this );
   }
 
   @Override

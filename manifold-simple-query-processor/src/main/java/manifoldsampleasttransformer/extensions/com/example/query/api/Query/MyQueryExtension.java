@@ -20,9 +20,9 @@ public class MyQueryExtension
    * Executes this {@code Query} by evaluating the {@link Query#constraints} and {@link Query#orderBy} using
    * {@link SimpleEvaluator}, a simple, reflection-based expression evaluator.
    * @param dataSource An Iterable of entities.
-   * @return The filtered and sorted data.
+   * @return The filtered and sorted results as an ordered List.
    */
-  public static <T extends Entity> Iterable<T> run( @This Query<T> thiz, Iterable<T> dataSource )
+  public static <T extends Entity> List<T> run( @This Query<T> thiz, Iterable<T> dataSource )
   {
     List<T> results = filter( thiz, dataSource );
     sort( thiz, results );
@@ -33,7 +33,7 @@ public class MyQueryExtension
   {
     Entity[] csr = {null};
     SimpleEvaluator evaluator = new SimpleEvaluator( name -> csr[0] );
-    List<T> results = new ArrayList<T>();
+    List<T> results = new ArrayList<>();
     for( T t: dataSource )
     {
        csr[0] = t;

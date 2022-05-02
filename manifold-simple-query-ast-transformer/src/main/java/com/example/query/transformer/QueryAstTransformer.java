@@ -78,6 +78,7 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
   private Symbol.ClassSymbol _binaryExprSym;
   private Symbol.ClassSymbol _unaryExprSym;
   private Symbol.ClassSymbol _referenceExprSym;
+  private Symbol.ClassSymbol _typeCastExprSym;
   private Symbol.ClassSymbol _expressionSym;
   private Symbol.ClassSymbol _methodCallExprSym;
   private Symbol.ClassSymbol _operatorSym;
@@ -133,6 +134,7 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
     _binaryExprSym = getClassSymbol( BinaryExpression.class );
     _expressionSym = getClassSymbol( Expression.class );
     _referenceExprSym = getClassSymbol( ReferenceExpression.class );
+    _typeCastExprSym = getClassSymbol( TypeCastExpression.class );
     _methodCallExprSym = getClassSymbol( MethodCallExpression.class );
     _operatorSym = getClassSymbol( Operator.class );
     _memberKindSym = getClassSymbol( MemberKind.class );
@@ -215,10 +217,10 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
         {
           // translate to `new ReferenceExpression(...)`
 
-          String entityTypeName = fa.selected.type.tsym.getQualifiedName().toString();
-          String memberName = fa.getIdentifier().toString();
+          String entityTypeName = getTypeName( fa.selected.type );
           JCLiteral entityArg = _make.Literal( entityTypeName );
           entityArg.pos = tree.pos;
+          String memberName = fa.getIdentifier().toString();
           JCLiteral memberArg = _make.Literal( memberName );
           memberArg.pos = tree.pos;
           JCExpression methodMemberKindExpr = memberKindExpr( Method );
@@ -234,8 +236,10 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
           nameExpr.pos = tree.pos;
           JCNewArray paramTypesArray = makeParamTypeArray( tree, fa );
           JCNewArray argsArray = makeArgsArray( tree );
+          JCLiteral typeNameExpr = _make.Literal( getTypeName( tree.type ) );
+          typeNameExpr.pos = tree.pos;
           result = _make.Create( getMethodCallExprCtor(),
-            List.of( fa.selected, nameExpr, paramTypesArray, argsArray ) );
+            List.of( fa.selected, nameExpr, paramTypesArray, argsArray, typeNameExpr ) );
           result.pos = tree.pos;
         }
       }
@@ -264,7 +268,7 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
     ArrayList<JCLiteral> paramTypes = new ArrayList<>();
     for( Symbol.VarSymbol param : parameters )
     {
-      JCLiteral typeNameExpr = _make.Literal( param.type.tsym.getQualifiedName().toString() );
+      JCLiteral typeNameExpr = _make.Literal( getTypeName( param.type ) );
       typeNameExpr.pos = tree.pos;
       paramTypes.add( typeNameExpr );
     }
@@ -273,6 +277,17 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
     paramTypesArray.setType( new Type.ArrayType( _symtab.stringType, _symtab.arrayClass ) );
     paramTypesArray.pos = tree.pos;
     return paramTypesArray;
+  }
+
+  private String getTypeName( Type type )
+  {
+    type = _types.erasure( type );
+    StringBuilder sb = new StringBuilder( type.tsym.flatName() );
+    for( ; type instanceof Type.ArrayType; type = ((Type.ArrayType)type).getComponentType() )
+    {
+      sb.append( "[]" );
+    }
+    return sb.toString();
   }
 
   private void processQueryMethodCallArgs( JCMethodInvocation tree )
@@ -289,16 +304,16 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
   }
 
   @Override
-  public void visitUnary( JCUnary jcUnary )
+  public void visitUnary( JCUnary tree )
   {
-    super.visitUnary( jcUnary );
+    super.visitUnary( tree );
 
     if( !isProcessingQuery() )
     {
       return;
     }
 
-    Tag opcode = jcUnary.getTag();
+    Tag opcode = tree.getTag();
     if( opcode != Tag.NO_TAG && opcode != Tag.NOT && opcode != Tag.NEG )
     {
       return;
@@ -309,16 +324,18 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
     Name operatorName = _names.fromString( convertOp( opcode ).name() );
     Symbol operatorSym = IDynamicJdk.instance().getMembersByName( _operatorSym, operatorName ).iterator().next();
     JCExpression operatorExpr = _make.QualIdent( operatorSym );
-    operatorExpr.pos = jcUnary.arg.pos;
-    JCExpression constructUnaryExpr = _make.Create( getUnaryExprCtor(), List.of( operatorExpr, jcUnary.arg ) );
-    constructUnaryExpr.pos = jcUnary.arg.pos;
+    operatorExpr.pos = tree.arg.pos;
+    JCLiteral typeNameExpr = _make.Literal( getTypeName( tree.type ) );
+    typeNameExpr.pos = tree.pos;
+    JCExpression constructUnaryExpr = _make.Create( getUnaryExprCtor(), List.of( operatorExpr, tree.arg, typeNameExpr ) );
+    constructUnaryExpr.pos = tree.arg.pos;
     result = constructUnaryExpr;
   }
 
   @Override
-  public void visitBinary( JCBinary jcBinary )
+  public void visitBinary( JCBinary tree )
   {
-    super.visitBinary( jcBinary );
+    super.visitBinary( tree );
 
     if( !isProcessingQuery() )
     {
@@ -327,7 +344,7 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
 
     // `new BinaryExpression( arg1, op, arg2 )`
 
-    Tag opcode = jcBinary.getTag();
+    Tag opcode = tree.getTag();
     if( !isConvertibleBinaryOp( opcode ) )
     {
       return;
@@ -336,10 +353,14 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
     Name operatorName = _names.fromString( convertOp( opcode ).name() );
     Symbol operatorSym = IDynamicJdk.instance().getMembersByName( _operatorSym, operatorName ).iterator().next();
     JCExpression operatorExpr = _make.QualIdent( operatorSym );
-    operatorExpr.pos = jcBinary.lhs.pos;
+    operatorExpr.pos = tree.lhs.pos;
+
+    JCLiteral typeExpr = _make.Literal( getTypeName( tree.type ) );
+    typeExpr.pos = tree.pos;
+
     JCExpression constructBinaryExpr = _make.Create( getBinaryExprCtor(),
-      List.of( jcBinary.lhs, operatorExpr, jcBinary.rhs ) );
-    constructBinaryExpr.pos = jcBinary.pos;
+      List.of( tree.lhs, operatorExpr, tree.rhs, typeExpr ) );
+    constructBinaryExpr.pos = tree.pos;
     result = constructBinaryExpr;
   }
 
@@ -357,17 +378,36 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
     {
       // `new ReferenceExpression(...)`
 
-      String entityTypeName = tree.selected.type.tsym.getQualifiedName().toString();
-      String fieldname = tree.getIdentifier().toString();
-      JCLiteral entityArg = _make.Literal( entityTypeName );
-      entityArg.pos = tree.pos;
-      JCLiteral memberArg = _make.Literal( fieldname );
+      String entityTypeName = getTypeName( tree.selected.type );
+      JCLiteral typeNameExpr = _make.Literal( entityTypeName );
+      typeNameExpr.pos = tree.pos;
+      String fieldName = tree.getIdentifier().toString();
+      JCLiteral memberArg = _make.Literal( fieldName );
       memberArg.pos = tree.pos;
       JCExpression fieldMemberKindExpr = memberKindExpr( Field );
       fieldMemberKindExpr.pos = tree.pos;
-      JCExpression newRef = _make.Create( getReferenceExprCtor(), List.of( entityArg, memberArg, fieldMemberKindExpr ) );
+      JCExpression newRef = _make.Create( getReferenceExprCtor(), List.of( typeNameExpr, memberArg, fieldMemberKindExpr ) );
       newRef.pos = tree.pos;
       result = newRef;
+    }
+  }
+
+  @Override
+  public void visitTypeCast( JCTypeCast tree )
+  {
+    super.visitTypeCast( tree );
+
+    if( isProcessingQuery() )
+    {
+      Type type = tree.getExpression().type;
+      if( isExpressionType( type ) )
+      {
+        String typeName = getTypeName( tree.getType().type );
+        JCLiteral typeNameExpr = _make.Literal( typeName );
+        typeNameExpr.pos = tree.pos;
+        result = _make.Create( getTypeCastExprCtor(), List.of( tree.expr, typeNameExpr ) );
+        result.pos = tree.pos;
+      }
     }
   }
 
@@ -403,14 +443,30 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
         }
       }
     }
-    throw new IllegalStateException( "missing Reference constructor" );
+    throw new IllegalStateException( "missing ReferenceExpression constructor" );
+  }
+  private Symbol.MethodSymbol getTypeCastExprCtor()
+  {
+    for( Symbol s : IDynamicJdk.instance().getMembers( _typeCastExprSym, Symbol::isConstructor ) )
+    {
+      Symbol.MethodSymbol ctor = (Symbol.MethodSymbol)s;
+      if( ctor.params.length() == 2 )
+      {
+        if( ctor.params.get( 0 ).type.tsym.getQualifiedName().toString().equals( Object.class.getTypeName() ) &&
+          ctor.params.get( 1 ).type.tsym.getQualifiedName().toString().equals( String.class.getTypeName() ) )
+        {
+          return ctor;
+        }
+      }
+    }
+    throw new IllegalStateException( "missing TypeCastExpression constructor" );
   }
   private Symbol.MethodSymbol getMethodCallExprCtor()
   {
     for( Symbol s : IDynamicJdk.instance().getMembers( _methodCallExprSym, Symbol::isConstructor ) )
     {
       Symbol.MethodSymbol ctor = (Symbol.MethodSymbol)s;
-      if( ctor.params.length() == 4 )
+      if( ctor.params.length() == 5 )
       {
         return ctor;
       }
@@ -423,10 +479,11 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
     for( Symbol s : IDynamicJdk.instance().getMembers( _unaryExprSym, Symbol::isConstructor ) )
     {
       Symbol.MethodSymbol ctor = (Symbol.MethodSymbol)s;
-      if( ctor.params.length() == 2 )
+      if( ctor.params.length() == 3 )
       {
         if( ctor.params.get( 0 ).type.tsym.getQualifiedName().toString().equals( Operator.class.getTypeName() ) &&
-          ctor.params.get( 1 ).type.tsym.getQualifiedName().toString().equals( Object.class.getTypeName() ) )
+          ctor.params.get( 1 ).type.tsym.getQualifiedName().toString().equals( Object.class.getTypeName() ) &&
+          ctor.params.get( 2 ).type.tsym.getQualifiedName().toString().equals( String.class.getTypeName() ) )
         {
           return ctor;
         }
@@ -439,11 +496,12 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
     for( Symbol s : IDynamicJdk.instance().getMembers( _binaryExprSym, Symbol::isConstructor ) )
     {
       Symbol.MethodSymbol ctor = (Symbol.MethodSymbol)s;
-      if( ctor.params.length() == 3 )
+      if( ctor.params.length() == 4 )
       {
         if( ctor.params.get( 0 ).type.tsym.getQualifiedName().toString().equals( Object.class.getTypeName() ) &&
           ctor.params.get( 1 ).type.tsym.getQualifiedName().toString().equals( Operator.class.getTypeName() ) &&
-          ctor.params.get( 2 ).type.tsym.getQualifiedName().toString().equals( Object.class.getTypeName() ) )
+          ctor.params.get( 2 ).type.tsym.getQualifiedName().toString().equals( Object.class.getTypeName() ) &&
+          ctor.params.get( 3 ).type.tsym.getQualifiedName().toString().equals( String.class.getTypeName() ) )
         {
           return ctor;
         }
@@ -501,6 +559,11 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
       case OR: return Operator.OR;
       case NOT: return Operator.NOT;
       case NEG: return Operator.NEG;
+      case PLUS: return Operator.PLUS;
+      case MINUS: return Operator.MINUS;
+      case MUL: return Operator.TIMES;
+      case DIV: return Operator.DIV;
+      case MOD: return Operator.REM;
       case NO_TAG: return Operator.NONE;
       default: throw new IllegalStateException( "unhandled operator: " + jcOp.name() );
     }
@@ -518,6 +581,11 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
       case NE:
       case AND:
       case OR:
+      case PLUS:
+      case MINUS:
+      case MUL:
+      case DIV:
+      case MOD:
         return true;
     }
     return false;

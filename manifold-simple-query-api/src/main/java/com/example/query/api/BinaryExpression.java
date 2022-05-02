@@ -1,21 +1,18 @@
 package com.example.query.api;
 
 import manifold.ext.props.rt.api.val;
-import manifold.rt.api.util.ManObjectUtil;
-
-import java.util.function.Function;
 
 /**
  * A tree of simple constraints accepting direct POJO field references.
  */
-public class BinaryExpression implements Expression
+public class BinaryExpression extends Expression
 {
   @val Object left;
   @val Operator operator;
   @val Object right;
 
   /**
-   * Equality or relational constraint: <br>
+   * Equality, relational, or arithmetic expression: <br>
    * {@code person.age > 18} <br>
    * {@code person.age > 18 && person.gender == Male}
    * @param left Entity property reference, literal, or other constraint.
@@ -23,10 +20,13 @@ public class BinaryExpression implements Expression
    *                 equality: ({@code == !=}) <br>
    *                 relational: ({@code > >= < <=})
    *                 logical: ({@code && ||})
-   * @param right Entity property reference, literal, or other constraint.
+   *                 arithmetic: ({@code + - * / %})
+   * @param right Entity property reference, literal, or other expression.
+   * @param type The qualified Java type name of the resulting value.
    */
-  public BinaryExpression( Object left, Operator operator, Object right )
+  public BinaryExpression( Object left, Operator operator, Object right, String type )
   {
+    super( type );
     this.left = left;
     this.right = right;
     this.operator = operator;
@@ -35,17 +35,11 @@ public class BinaryExpression implements Expression
   @Override
   public Object accept( ExpressionVisitor visitor )
   {
-    return visitor.visitBinaryExpression( this );
+    return visitor.visitBinary( this );
   }
 
   public String toString()
   {
-    StringBuilder sb = new StringBuilder();
-    sb.append('(')
-      .append( left ).append( ' ' )
-      .append( operator.symbol ).append( ' ' )
-      .append( right )
-      .append( ')');
-    return sb.toString();
+    return "(" + left + ' ' + operator.symbol + ' ' +  right + ')';
   }
 }

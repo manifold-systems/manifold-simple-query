@@ -1,6 +1,15 @@
 package com.example.query.api;
 
-public interface Expression
+import manifold.ext.props.rt.api.val;
+
+public abstract class Expression
 {
-  Object accept( ExpressionVisitor visitor );
+  @val String type;
+
+  public Expression( String type )
+  {
+    this.type = type;
+  }
+
+  public abstract Object accept( ExpressionVisitor visitor );
 }

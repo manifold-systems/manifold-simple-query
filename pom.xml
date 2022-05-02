@@ -20,7 +20,7 @@
     </modules>
 
     <properties>
-        <manifold-version>2022.1.11</manifold-version>
+        <manifold-version>2022.1.12</manifold-version>
         <!-- Manifold supports Java versions 8 - 17 (current release)  -->
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>

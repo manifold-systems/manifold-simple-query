@@ -6,15 +6,14 @@ import manifold.rt.api.util.ManClassUtil;
 /**
  * A direct entity property reference is transformed to an instance of this class.
  */
-public class ReferenceExpression implements Expression
+public class ReferenceExpression extends Expression
 {
-  @val String typeName;
   @val String memberName;
   @val MemberKind memberKind;
 
-  public ReferenceExpression( String typeName, String memberName, MemberKind kind )
+  public ReferenceExpression( String type, String memberName, MemberKind kind )
   {
-    this.typeName = typeName;
+    super( type );
     this.memberName = memberName;
     this.memberKind = kind;
   }
@@ -22,12 +21,12 @@ public class ReferenceExpression implements Expression
   @Override
   public Object accept( ExpressionVisitor visitor )
   {
-    return visitor.visitReferenceExpression( this );
+    return visitor.visitReference( this );
   }
 
   public String toString()
   {
-    return ManClassUtil.getShortClassName( typeName ) + "#" +
+    return ManClassUtil.getShortClassName( type ) + "#" +
       memberName + (memberKind == MemberKind.Method ? "()" : "");
   }
 }

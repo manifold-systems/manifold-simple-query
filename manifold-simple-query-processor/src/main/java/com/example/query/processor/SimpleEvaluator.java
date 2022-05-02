@@ -2,9 +2,9 @@ package com.example.query.processor;
 
 import com.example.query.api.*;
 import manifold.ext.props.rt.api.val;
-import manifold.rt.api.util.ManObjectUtil;
 import manifold.util.ReflectUtil;
 
+import java.util.Arrays;
 import java.util.function.Function;
 
 /**
@@ -27,9 +27,9 @@ public class SimpleEvaluator implements ExpressionVisitor
   }
 
   @Override
-  public Object visitReferenceExpression( ReferenceExpression expr )
+  public Object visitReference( ReferenceExpression expr )
   {
-    Entity entityValue = valueSupplier.apply( expr.typeName );
+    Entity entityValue = valueSupplier.apply( expr.type );
     if( expr.memberKind == MemberKind.Method )
     {
       return ReflectUtil.method( entityValue, expr.memberName ).invoke();
@@ -38,14 +38,16 @@ public class SimpleEvaluator implements ExpressionVisitor
   }
 
   @Override
-  public Object visitMethodCallExpression( MethodCallExpression expr )
+  public Object visitMethodCall( MethodCallExpression expr )
   {
     Object receiverValue = expr.receiver.accept( this );
-    return FunctionCallHandler.invoke( receiverValue, expr.methodName, expr.paramTypes, expr.args );
+    Object[] argValues = Arrays.stream( expr.args ).map( arg ->
+      arg instanceof Expression ? ((Expression)arg).accept( this ) : arg ).toArray();
+    return FunctionCallHandler.invoke( receiverValue, expr.methodName, expr.paramTypes, argValues );
   }
 
   @Override
-  public Object visitUnaryExpression( UnaryExpression expr )
+  public Object visitUnary( UnaryExpression expr )
   {
     Object operandValue = expr.operand;
     if( operandValue instanceof Expression )
@@ -63,9 +65,21 @@ public class SimpleEvaluator implements ExpressionVisitor
     }
   }
 
-  @SuppressWarnings( {"unchecked", "rawtypes"} )
   @Override
-  public Object visitBinaryExpression( BinaryExpression expr )
+  public Object visitTypeCast( TypeCastExpression typeCastExpr )
+  {
+    Object expr = typeCastExpr.expr;
+    Object exprValue = expr instanceof Expression ? ((Expression)expr).accept( this ) : expr;
+    Class<?> type = ReflectUtil.type( typeCastExpr.type );
+    if( com.example.query.api.Expression.class.isAssignableFrom( type ) )
+    {
+      return exprValue;
+    }
+    return ArithmeticUtil.coerce( exprValue, type );
+  }
+
+  @Override
+  public Object visitBinary( BinaryExpression expr )
   {
     Object leftValue = expr.left;
     if( leftValue instanceof Expression )
@@ -84,17 +98,27 @@ public class SimpleEvaluator implements ExpressionVisitor
       case OR:
         return (Boolean)leftValue || (Boolean)rightValue;
       case GT:
-        return ((Comparable)leftValue).compareTo( rightValue ) > 0;
+        return ArithmeticUtil.compareTo( leftValue, rightValue ) > 0;
       case LT:
-        return ((Comparable)leftValue).compareTo( rightValue ) < 0;
+        return ArithmeticUtil.compareTo( leftValue, rightValue ) < 0;
       case GE:
-        return ((Comparable)leftValue).compareTo( rightValue ) >= 0;
+        return ArithmeticUtil.compareTo( leftValue, rightValue ) >= 0;
       case LE:
-        return ((Comparable)leftValue).compareTo( rightValue ) <= 0;
+        return ArithmeticUtil.compareTo( leftValue, rightValue ) <= 0;
       case EQ:
-        return ManObjectUtil.equals( leftValue, rightValue );
+        return ArithmeticUtil.equals( leftValue, rightValue );
       case NE:
-        return !ManObjectUtil.equals( leftValue, rightValue );
+        return !ArithmeticUtil.equals( leftValue, rightValue );
+      case PLUS:
+        return ArithmeticUtil.plus( leftValue, rightValue );
+      case MINUS:
+        return ArithmeticUtil.minus( leftValue, rightValue );
+      case TIMES:
+        return ArithmeticUtil.times( leftValue, rightValue );
+      case DIV:
+        return ArithmeticUtil.div( leftValue, rightValue );
+      case REM:
+        return ArithmeticUtil.rem( leftValue, rightValue );
       default:
         throw new IllegalStateException( "Unexpected operator: " + expr.operator );
     }

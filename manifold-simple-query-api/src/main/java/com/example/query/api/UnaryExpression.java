@@ -1,13 +1,10 @@
 package com.example.query.api;
 
 import manifold.ext.props.rt.api.val;
-import manifold.rt.api.util.ManObjectUtil;
-
-import java.util.function.Function;
 
 /**
  */
-public class UnaryExpression implements Expression
+public class UnaryExpression extends Expression
 {
   @val Operator operator;
   @val Object operand;
@@ -19,8 +16,9 @@ public class UnaryExpression implements Expression
    *                {@link Operator#NEG}: {@code -}
    * @param operand Must be boolean.
    */
-  public UnaryExpression( Operator operator, Object operand )
+  public UnaryExpression( Operator operator, Object operand, String type )
   {
+    super( type );
     this.operator = operator;
     this.operand = operand;
   }
@@ -28,16 +26,11 @@ public class UnaryExpression implements Expression
   @Override
   public Object accept( ExpressionVisitor visitor )
   {
-    return visitor.visitUnaryExpression( this );
+    return visitor.visitUnary( this );
   }
 
   public String toString()
   {
-    StringBuilder sb = new StringBuilder();
-    sb.append('(')
-      .append( operator.symbol )
-      .append( operand )
-      .append( ')');
-    return sb.toString();
+    return '(' + operator.symbol + operand + ')';
   }
 }

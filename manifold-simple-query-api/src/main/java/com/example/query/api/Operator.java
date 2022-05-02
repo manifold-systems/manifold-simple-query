@@ -8,11 +8,12 @@ public enum Operator
   NOT("!"), NEG("-"),
   AND("&&"), OR("||"),
   GT(">"), LT("<"), GE(">="), LE("<="),
-  EQ("=="), NE("!=");
+  EQ("=="), NE("!="),
+  PLUS("+"), MINUS("-"), TIMES("*"), DIV("/"), REM("%");
 
   @val String symbol;
 
-  private Operator( String symbol )
+  Operator( String symbol )
   {
     this.symbol = symbol;
   }
