@@ -5,7 +5,7 @@
     <groupId>systems.manifold</groupId>
     <artifactId>manifold-simple-query</artifactId>
     <packaging>pom</packaging>
-    <version>0.1-SNAPSHOT</version>
+    <version>${revision}</version>
 
     <name>Manifold :: Simple Query</name>
     <description>
@@ -20,6 +20,7 @@
     </modules>
 
     <properties>
+        <revision>0.1-SNAPSHOT</revision>
         <manifold-version>2022.1.12</manifold-version>
         <!-- Manifold supports Java versions 8 - 17 (current release)  -->
         <maven.compiler.source>8</maven.compiler.source>

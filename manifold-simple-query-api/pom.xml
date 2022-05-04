@@ -6,11 +6,10 @@
     <parent>
         <groupId>systems.manifold</groupId>
         <artifactId>manifold-simple-query</artifactId>
-        <version>0.1-SNAPSHOT</version>
+        <version>${revision}</version>
     </parent>
 
     <artifactId>manifold-simple-query-api</artifactId>
-    <version>0.1-SNAPSHOT</version>
 
     <name>Manifold :: Simple Query API</name>
 

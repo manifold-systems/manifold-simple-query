@@ -6,11 +6,10 @@
     <parent>
         <groupId>systems.manifold</groupId>
         <artifactId>manifold-simple-query</artifactId>
-        <version>0.1-SNAPSHOT</version>
+        <version>${revision}</version>
     </parent>
 
     <artifactId>manifold-simple-query-processor</artifactId>
-    <version>0.1-SNAPSHOT</version>
 
     <name>Manifold :: Simple Query Processor</name>
 
@@ -18,7 +17,7 @@
         <dependency>
             <groupId>systems.manifold</groupId>
             <artifactId>manifold-simple-query-api</artifactId>
-            <version>0.1-SNAPSHOT</version>
+            <version>${revision}</version>
         </dependency>
         <dependency>
             <groupId>systems.manifold</groupId>
@@ -59,7 +58,7 @@
                         <path>
                             <groupId>systems.manifold</groupId>
                             <artifactId>manifold-simple-query-ast-transformer</artifactId>
-                            <version>0.1-SNAPSHOT</version>
+                            <version>${revision}</version>
 <!--                            <scope>test</scope>-->
                         </path>
                     </annotationProcessorPaths>
