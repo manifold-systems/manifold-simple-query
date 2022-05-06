@@ -105,6 +105,20 @@ public class TestMe
   }
 
   @Test
+  public void extensionMethodFunctionCallTest()
+  {
+    Query<Person> query = Person.query( (p, q) -> q
+      .where( p.name.in("Skeeter", "Smokey") ) // using extension method MyComparableExt#in(...)
+      .orderBy( p.name ) );
+    List<Person> results = query.run( data );
+    assertEquals( 2, results.size() );
+    assertEquals( "Skeeter", results.get( 0 ).name );
+    assertEquals( "Smokey", results.get( 1 ).name );
+    System.out.println( results );
+    System.out.println( query );
+  }
+
+  @Test
   public void arithmeticTest()
   {
     Numbers nums = new Numbers( (byte)1, (short)1, 1, 1, 1.1f, 1.2, 'a' );

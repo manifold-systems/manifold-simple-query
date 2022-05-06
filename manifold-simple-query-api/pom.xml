@@ -61,6 +61,8 @@
                 <configuration>
                     <archive>
                         <manifestEntries>
+                            <!-- Convey extensions -->
+                            <Contains-Sources>java,class</Contains-Sources>
                             <!--JPMS module name-->
                             <Automatic-Module-Name>manifold.simple.query.api</Automatic-Module-Name>
                         </manifestEntries>

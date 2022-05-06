@@ -3,6 +3,7 @@ package com.example.query.api;
 public interface ExpressionVisitor
 {
   Object visitReference( ReferenceExpression expr );
+  Object visitTypeReference( TypeReferenceExpression expr );
   Object visitMethodCall( MethodCallExpression expr );
   Object visitUnary( UnaryExpression expr );
   Object visitBinary( BinaryExpression expr );

@@ -42,7 +42,11 @@ public class FunctionCallHandler
 
   private static Object handleAnyCall( Object receiver, String name, String[] paramTypeNames, Object[] args )
   {
-    Class<?>[] paramTypes = Arrays.stream( paramTypeNames ).map( ReflectUtil::type ).toArray( Class[]::new );
+    Class<?>[] paramTypes = Arrays.stream( paramTypeNames ).map( ( String fqn ) -> fqn.equals("Array[]") ? Object[].class : ReflectUtil.type( fqn ) ).toArray( Class[]::new );
+    if( receiver instanceof Class )
+    {
+      return ReflectUtil.method( (Class<?>)receiver, name, paramTypes ).invokeStatic( args );
+    }
     return ReflectUtil.method( receiver, name, paramTypes ).invoke( args );
   }
 
@@ -59,6 +63,7 @@ public class FunctionCallHandler
   {
     if( receiver instanceof Comparable )
     {
+      //noinspection unchecked,rawtypes
       return ((Comparable)receiver).compareTo( args[0] );
     }
     return UNHANDLED;

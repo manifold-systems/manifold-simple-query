@@ -23,6 +23,7 @@ import manifold.internal.javac.IDynamicJdk;
 import manifold.internal.javac.JavacPlugin;
 import manifold.internal.javac.TypeProcessor;
 
+import javax.lang.model.element.Modifier;
 import java.util.ArrayList;
 
 import static com.example.query.api.MemberKind.Field;
@@ -78,6 +79,7 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
   private Symbol.ClassSymbol _binaryExprSym;
   private Symbol.ClassSymbol _unaryExprSym;
   private Symbol.ClassSymbol _referenceExprSym;
+  private Symbol.ClassSymbol _typeReferenceExprSym;
   private Symbol.ClassSymbol _typeCastExprSym;
   private Symbol.ClassSymbol _expressionSym;
   private Symbol.ClassSymbol _methodCallExprSym;
@@ -134,6 +136,7 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
     _binaryExprSym = getClassSymbol( BinaryExpression.class );
     _expressionSym = getClassSymbol( Expression.class );
     _referenceExprSym = getClassSymbol( ReferenceExpression.class );
+    _typeReferenceExprSym = getClassSymbol( TypeReferenceExpression.class );
     _typeCastExprSym = getClassSymbol( TypeCastExpression.class );
     _methodCallExprSym = getClassSymbol( MethodCallExpression.class );
     _operatorSym = getClassSymbol( Operator.class );
@@ -235,11 +238,32 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
           JCLiteral nameExpr = _make.Literal( fa.name.toString() );
           nameExpr.pos = tree.pos;
           JCNewArray paramTypesArray = makeParamTypeArray( tree, fa );
-          JCNewArray argsArray = makeArgsArray( tree );
+          JCNewArray argsArray = makeArgsArray( tree, ((Symbol.MethodSymbol)fa.sym).isVarArgs() );
           JCLiteral typeNameExpr = _make.Literal( getTypeName( tree.type ) );
           typeNameExpr.pos = tree.pos;
           result = _make.Create( getMethodCallExprCtor(),
             List.of( fa.selected, nameExpr, paramTypesArray, argsArray, typeNameExpr ) );
+          result.pos = tree.pos;
+        }
+        else if( ((JCFieldAccess)tree.meth).sym.getModifiers().contains( Modifier.STATIC ) )
+        {
+          // translate to static `new MethodCallExpression(...)`
+
+          String className = getTypeName( fa.selected.type );
+          JCLiteral classNameExpr = _make.Literal( className );
+          classNameExpr.pos = fa.pos;
+          JCExpression newTypeRef = _make.Create( getTypeReferenceExprCtor(), List.of( classNameExpr ) );
+          newTypeRef.pos = fa.pos;
+
+          JCLiteral nameExpr = _make.Literal( fa.name.toString() );
+          nameExpr.pos = tree.pos;
+          JCNewArray paramTypesArray = makeParamTypeArray( tree, fa );
+          JCNewArray argsArray = makeArgsArray( tree, ((Symbol.MethodSymbol)fa.sym).isVarArgs() );
+          JCLiteral typeNameExpr = _make.Literal( getTypeName( tree.type ) );
+          typeNameExpr.pos = tree.pos;
+
+          result = _make.Create( getMethodCallExprCtor(),
+            List.of( newTypeRef, nameExpr, paramTypesArray, argsArray, typeNameExpr ) );
           result.pos = tree.pos;
         }
       }
@@ -253,13 +277,43 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
     return _make.QualIdent( memberKindSym );
   }
 
-  private JCNewArray makeArgsArray( JCMethodInvocation tree )
+  private JCNewArray makeArgsArray( JCMethodInvocation tree, boolean isVarArgs )
   {
     JCNewArray argsArray = _make.NewArray(
-      _make.Type( _symtab.objectType ), List.nil(), List.from( tree.args ) );
+      _make.Type( _symtab.objectType ), List.nil(), List.from( isVarArgs ? handleVarArgs( tree ) : tree.args ) );
     argsArray.setType( new Type.ArrayType( _symtab.objectType, _symtab.arrayClass ) );
     argsArray.pos = tree.pos;
     return argsArray;
+  }
+
+  private List<JCExpression> handleVarArgs( JCMethodInvocation tree )
+  {
+    JCFieldAccess fa = (JCFieldAccess)tree.getMethodSelect();
+    List<Symbol.VarSymbol> params = ((Symbol.MethodSymbol)fa.sym).params();
+    List<JCExpression> newArgs = List.nil();
+    for( int i = 0; i < params.size(); i++ )
+    {
+      Symbol.VarSymbol param = params.get( i );
+      if( i == params.size() - 1 )
+      {
+        ArrayList<JCExpression> varArgs = new ArrayList<>();
+        for( int j = i; j < tree.args.length(); j++ )
+        {
+          varArgs.add( tree.args.get( j ) );
+        }
+        Type elemType = _types.erasure( tree.varargsElement );
+        JCNewArray varArgsExpr = _make.NewArray( _make.Type( elemType ), List.nil(), List.from( varArgs ) );
+        varArgsExpr.setType( new Type.ArrayType( elemType, _symtab.arrayClass ) );
+        varArgsExpr.pos = tree.pos;
+
+        newArgs = newArgs.append( varArgsExpr );
+      }
+      else
+      {
+        newArgs = newArgs.append( tree.args.get( i ) );
+      }
+    }
+    return newArgs;
   }
 
   private JCNewArray makeParamTypeArray( JCMethodInvocation tree, JCFieldAccess fa )
@@ -444,6 +498,22 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
       }
     }
     throw new IllegalStateException( "missing ReferenceExpression constructor" );
+  }
+
+  private Symbol.MethodSymbol getTypeReferenceExprCtor()
+  {
+    for( Symbol s : IDynamicJdk.instance().getMembers( _typeReferenceExprSym, Symbol::isConstructor ) )
+    {
+      Symbol.MethodSymbol ctor = (Symbol.MethodSymbol)s;
+      if( ctor.params.length() == 1 )
+      {
+        if( ctor.params.get( 0 ).type.tsym.getQualifiedName().toString().equals( String.class.getTypeName() ) )
+        {
+          return ctor;
+        }
+      }
+    }
+    throw new IllegalStateException( "missing TypeReferenceExpression constructor" );
   }
   private Symbol.MethodSymbol getTypeCastExprCtor()
   {

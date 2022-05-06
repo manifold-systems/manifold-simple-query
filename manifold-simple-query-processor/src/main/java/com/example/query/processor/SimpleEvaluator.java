@@ -38,9 +38,15 @@ public class SimpleEvaluator implements ExpressionVisitor
   }
 
   @Override
+  public Object visitTypeReference( TypeReferenceExpression expr )
+  {
+    return ReflectUtil.type( expr.type );
+  }
+
+  @Override
   public Object visitMethodCall( MethodCallExpression expr )
   {
-    Object receiverValue = expr.receiver.accept( this );
+    Object receiverValue = expr.receiver == null ? null : expr.receiver.accept( this );
     Object[] argValues = Arrays.stream( expr.args ).map( arg ->
       arg instanceof Expression ? ((Expression)arg).accept( this ) : arg ).toArray();
     return FunctionCallHandler.invoke( receiverValue, expr.methodName, expr.paramTypes, argValues );
