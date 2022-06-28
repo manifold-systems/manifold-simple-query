@@ -20,6 +20,11 @@
             <artifactId>manifold-props-rt</artifactId>
             <version>${manifold-version}</version>
         </dependency>
+        <dependency>
+            <groupId>systems.manifold</groupId>
+            <artifactId>manifold-tuple-rt</artifactId>
+            <version>${manifold-version}</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -47,7 +52,7 @@
                         </path>
                         <path>
                             <groupId>systems.manifold</groupId>
-                            <artifactId>manifold-ext</artifactId>
+                            <artifactId>manifold-tuple</artifactId>
                             <version>${manifold-version}</version>
                         </path>
                     </annotationProcessorPaths>

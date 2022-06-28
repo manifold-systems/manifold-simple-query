@@ -22,16 +22,16 @@ public class MyQueryExtension
    * @param dataSource An Iterable of entities.
    * @return The filtered and sorted results as an ordered List.
    */
-  public static <T extends Entity> List<T> run( @This Query<T> thiz, Iterable<T> dataSource )
+  public static <T> List<T> run( @This Query<T> thiz, Iterable<T> dataSource )
   {
     List<T> results = filter( thiz, dataSource );
     sort( thiz, results );
     return results;
   }
 
-  private static <T extends Entity> List<T> filter( Query<T> thiz, Iterable<T> dataSource )
+  private static <T> List<T> filter( Query<T> thiz, Iterable<T> dataSource )
   {
-    Entity[] csr = {null};
+    Object[] csr = {null};
     SimpleEvaluator evaluator = new SimpleEvaluator( name -> csr[0] );
     List<T> results = new ArrayList<>();
     for( T t: dataSource )
@@ -45,10 +45,10 @@ public class MyQueryExtension
     return results;
   }
 
-  private static <T extends Entity> void sort( Query<T> thiz, List<T> results )
+  private static <T> void sort( Query<T> thiz, List<T> results )
   {
     ReferenceExpression orderBy = thiz.orderBy;
-    Entity[] csr = {null};
+    Object[] csr = {null};
     SimpleEvaluator evaluator = new SimpleEvaluator( name -> csr[0] );
     if( orderBy != null )
     {

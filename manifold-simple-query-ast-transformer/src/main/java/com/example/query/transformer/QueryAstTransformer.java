@@ -22,6 +22,7 @@ import manifold.api.type.ICompilerComponent;
 import manifold.internal.javac.IDynamicJdk;
 import manifold.internal.javac.JavacPlugin;
 import manifold.internal.javac.TypeProcessor;
+import manifold.tuple.rt.api.Tuple;
 
 import javax.lang.model.element.Modifier;
 import java.util.ArrayList;
@@ -76,6 +77,7 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
   private Names _names;
   private Symbol.ClassSymbol _entitySym;
   private Symbol.ClassSymbol _querySym;
+  private Symbol.ClassSymbol _tupleSym;
   private Symbol.ClassSymbol _binaryExprSym;
   private Symbol.ClassSymbol _unaryExprSym;
   private Symbol.ClassSymbol _referenceExprSym;
@@ -131,7 +133,8 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
     _make = _tp.getTreeMaker();
     _names = Names.instance( _context );
     _entitySym = getClassSymbol( Entity.class );
-    _querySym = getClassSymbol( Query.class );
+    _querySym = getClassSymbol( QueryBase.class );
+    _tupleSym = getClassSymbol( Tuple.class );
     _unaryExprSym = getClassSymbol( UnaryExpression.class );
     _binaryExprSym = getClassSymbol( BinaryExpression.class );
     _expressionSym = getClassSymbol( Expression.class );
@@ -195,6 +198,22 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
         result.pos = tree.pos;
         return;
       }
+      else if( "select".equals( fa.getIdentifier().toString() ) &&
+        paramTypes.length() == 1 && _types.isSameType( _types.erasure( paramTypes.get( 0 ) ), _tupleSym.type ) &&
+        isEntityType( fa.selected.type ) )
+      {
+        super.visitApply( tree );
+
+        // translate to `.select(Class, Expression[])`
+
+        result = _make.Apply( List.nil(),
+          _make.Select( _make.Ident( fa.selected.type.tsym ), getSelectMethod() ),
+          List.of( _make.ClassLiteral( tree.args.get( 0 ).type ),
+            translateTupleValueExpressions( (JCNewClass)((JCParens)tree.args.get( 0 )).getExpression() ) ) );
+        result.type = tree.type;
+        result.pos = tree.pos;
+        return;
+      }
       else if( isProcessingQuery() )
       {
         processQueryMethodCallArgs( tree );
@@ -209,6 +228,26 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
     super.visitApply( tree );
   }
 
+  private JCNewArray translateTupleValueExpressions( JCNewClass tree )
+  {
+    pushProcessingQuery();
+    try
+    {
+      translate( tree.args );
+    }
+    finally
+    {
+      popProcessingQuery();
+    }
+
+    JCNewArray paramTypesArray = _make.NewArray(
+      _make.Type( _expressionSym.type ), List.nil(), List.from( tree.args ) );
+    paramTypesArray.setType( new Type.ArrayType( _expressionSym.type, _symtab.arrayClass ) );
+    paramTypesArray.pos = tree.pos;
+    return paramTypesArray;
+  }
+
+
   private void translateEntityReferencesAndMethodCalls( JCMethodInvocation tree )
   {
     if( isProcessingQuery() )
@@ -220,15 +259,18 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
         {
           // translate to `new ReferenceExpression(...)`
 
+          String exprType = getTypeName( tree.type );
+          JCLiteral exprTypeExpr = _make.Literal( exprType );
+          exprTypeExpr.pos = tree.pos;
           String entityTypeName = getTypeName( fa.selected.type );
-          JCLiteral entityArg = _make.Literal( entityTypeName );
-          entityArg.pos = tree.pos;
+          JCLiteral receiverTypeExpr = _make.Literal( entityTypeName );
+          receiverTypeExpr.pos = tree.pos;
           String memberName = fa.getIdentifier().toString();
           JCLiteral memberArg = _make.Literal( memberName );
           memberArg.pos = tree.pos;
           JCExpression methodMemberKindExpr = memberKindExpr( Method );
           methodMemberKindExpr.pos = tree.pos;
-          result = _make.Create( getReferenceExprCtor(), List.of( entityArg, memberArg, methodMemberKindExpr ) );
+          result = _make.Create( getReferenceExprCtor(), List.of( exprTypeExpr, receiverTypeExpr, memberArg, methodMemberKindExpr ) );
           result.pos = tree.pos;
         }
         else if( isExpressionType( fa.selected.type ) && !fa.name.toString().isEmpty() )
@@ -293,7 +335,6 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
     List<JCExpression> newArgs = List.nil();
     for( int i = 0; i < params.size(); i++ )
     {
-      Symbol.VarSymbol param = params.get( i );
       if( i == params.size() - 1 )
       {
         ArrayList<JCExpression> varArgs = new ArrayList<>();
@@ -428,19 +469,22 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
       return;
     }
 
-    if( isEntityType( tree.selected.type ) && !(tree.type instanceof Type.MethodType) ) // actual *field* access, as opposed to a method name reference
+    if( (isEntityType( tree.selected.type ) || isTupleType( tree.selected.type ))
+      && !(tree.type instanceof Type.MethodType) ) // actual *field* access, as opposed to a method name reference
     {
       // `new ReferenceExpression(...)`
 
-      String entityTypeName = getTypeName( tree.selected.type );
-      JCLiteral typeNameExpr = _make.Literal( entityTypeName );
+      String exprType = getTypeName( tree.type );
+      JCLiteral exprTypeExpr = _make.Literal( exprType );
+      String receiverTypeName = getTypeName( tree.selected.type );
+      JCLiteral typeNameExpr = _make.Literal( receiverTypeName );
       typeNameExpr.pos = tree.pos;
       String fieldName = tree.getIdentifier().toString();
       JCLiteral memberArg = _make.Literal( fieldName );
       memberArg.pos = tree.pos;
       JCExpression fieldMemberKindExpr = memberKindExpr( Field );
       fieldMemberKindExpr.pos = tree.pos;
-      JCExpression newRef = _make.Create( getReferenceExprCtor(), List.of( typeNameExpr, memberArg, fieldMemberKindExpr ) );
+      JCExpression newRef = _make.Create( getReferenceExprCtor(), List.of( exprTypeExpr, typeNameExpr, memberArg, fieldMemberKindExpr ) );
       newRef.pos = tree.pos;
       result = newRef;
     }
@@ -469,6 +513,10 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
   {
     return isType( type, _entitySym.type );
   }
+  private boolean isTupleType( Type type )
+  {
+    return isType( type, _tupleSym.type );
+  }
   private boolean isQueryType( Type type )
   {
     return isType( type, _querySym.type );
@@ -487,11 +535,12 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
     for( Symbol s : IDynamicJdk.instance().getMembers( _referenceExprSym, Symbol::isConstructor ) )
     {
       Symbol.MethodSymbol ctor = (Symbol.MethodSymbol)s;
-      if( ctor.params.length() == 3 )
+      if( ctor.params.length() == 4 )
       {
         if( ctor.params.get( 0 ).type.tsym.getQualifiedName().toString().equals( String.class.getTypeName() ) &&
           ctor.params.get( 1 ).type.tsym.getQualifiedName().toString().equals( String.class.getTypeName() ) &&
-          ctor.params.get( 2 ).type.tsym.getQualifiedName().toString().equals( MemberKind.class.getTypeName() ) )
+          ctor.params.get( 2 ).type.tsym.getQualifiedName().toString().equals( String.class.getTypeName() ) &&
+          ctor.params.get( 3 ).type.tsym.getQualifiedName().toString().equals( MemberKind.class.getTypeName() ) )
         {
           return ctor;
         }
@@ -609,6 +658,26 @@ public class QueryAstTransformer extends TreeTranslator implements ICompilerComp
       }
     }
     throw new IllegalStateException( "missing orderBy() method" );
+  }
+
+  private Symbol.MethodSymbol getSelectMethod()
+  {
+    for( Symbol s : IDynamicJdk.instance().getMembersByName( _entitySym, _names.fromString( "select" ) ) )
+    {
+      Symbol.MethodSymbol m = (Symbol.MethodSymbol)s;
+      if( m.params.length() == 2 )
+      {
+        Type firstParam = _types.erasure( m.params.get( 0 ).type );
+        Type secondParam = m.params.get( 1 ).type;
+        if( _types.isSameType( firstParam, _types.erasure( _symtab.classType ) ) &&
+          secondParam instanceof Type.ArrayType &&
+          ((Type.ArrayType)secondParam).elemtype.tsym.getQualifiedName().toString().equals( Expression.class.getTypeName() ) )
+        {
+          return m;
+        }
+      }
+    }
+    throw new IllegalStateException( "missing select() method" );
   }
 
   public boolean isProcessingQuery() { return _processingQuery > 0; }

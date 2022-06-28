@@ -1,5 +1,6 @@
 # Manifold : Simple Query
-Write type-safe queries like this:
+A purely experimental project to write type-safe SQL-like queries directly against POGO entity types that can target any
+type of backend data source, whether it be Java Collections or SQL or what have you.
 ```java
 Query<Person> query = Person.query((p, q) -> q
   .where(p.age >= 18 && p.gender == male)
@@ -9,6 +10,21 @@ Execute queries like this:
 ```java
 Iterable<Person> result = query.run(dataSource);
 ```
+
+Specify a 'select' clause using a type-safe [tuple expression](https://github.com/manifold-systems/manifold/tree/master/manifold-deps-parent/manifold-tuple):
+```java
+var query = Person.query(p -> p
+.select((p.name, DogYears: p.age * 7))
+.from((s, q) -> q
+  .where(p.gender == male && s.DogYears > 30)
+  .orderBy(s.name)));
+```
+Access results as iterable [tuple](https://github.com/manifold-systems/manifold/tree/master/manifold-deps-parent/manifold-tuple)
+values mirroring the select clause.
+```java
+var results = query.run(dataSource);
+```
+
 The query API is very simple and not meant to be used for anything serious. This project primarily demonstrates usage of
 the `ICompilerComponent` SPI as a means to perform Java AST transformations. It also uses other Manifold features along
 the way, including extension methods, `@val`/`@var` properties, `@Self`, and others.

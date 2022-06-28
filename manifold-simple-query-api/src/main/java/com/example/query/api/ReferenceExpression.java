@@ -8,12 +8,14 @@ import manifold.rt.api.util.ManClassUtil;
  */
 public class ReferenceExpression extends Expression
 {
+  @val String receiverType;
   @val String memberName;
   @val MemberKind memberKind;
 
-  public ReferenceExpression( String type, String memberName, MemberKind kind )
+  public ReferenceExpression( String type, String receiverType, String memberName, MemberKind kind )
   {
     super( type );
+    this.receiverType = receiverType;
     this.memberName = memberName;
     this.memberKind = kind;
   }

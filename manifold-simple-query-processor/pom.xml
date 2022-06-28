@@ -25,6 +25,11 @@
             <version>${manifold-version}</version>
         </dependency>
         <dependency>
+            <groupId>systems.manifold</groupId>
+            <artifactId>manifold-tuple-rt</artifactId>
+            <version>${manifold-version}</version>
+        </dependency>
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.13.1</version>
@@ -59,7 +64,11 @@
                             <groupId>systems.manifold</groupId>
                             <artifactId>manifold-simple-query-ast-transformer</artifactId>
                             <version>${revision}</version>
-<!--                            <scope>test</scope>-->
+                        </path>
+                        <path>
+                            <groupId>systems.manifold</groupId>
+                            <artifactId>manifold-tuple</artifactId>
+                            <version>${revision}</version>
                         </path>
                     </annotationProcessorPaths>
 

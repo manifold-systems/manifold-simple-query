@@ -3,6 +3,7 @@ package com.example;
 import com.example.query.api.Entity;
 import com.example.query.api.Query;
 import manifold.ext.props.rt.api.val;
+import manifold.ext.rt.api.auto;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -26,12 +27,12 @@ public class TestMe
   @Test
   public void scratchTest()
   {
-    Query<Person> query0 = Person.query( ( p, q ) -> q
+    auto query0 = Person.query( ( p, q ) -> q
       .orderBy( p.age ) );
     System.out.println( query0.run( data ) );
     System.out.println( query0 );
 
-    Query<Person> query = Person.query( (p, q) -> q
+    auto query = Person.query( (p, q) -> q
       .where( p.age >= 39 && p.gender != male )
       .orderBy( p.name ) );
     Iterable<Person> results = query.run( data );
@@ -42,7 +43,7 @@ public class TestMe
     System.out.println( results );
     System.out.println( query );
 
-    Query<Person> query2 = Person.query( ( p, q ) -> q
+    auto query2 = Person.query( ( p, q ) -> q
       .where( !p.deceased )
       .orderBy( p.age ) );
     System.out.println( query2.run( data ) );
@@ -50,9 +51,26 @@ public class TestMe
   }
 
   @Test
+  public void selectTest()
+  {
+    auto query = Person
+      .query(p -> p
+        .select((p.name, DogYears: p.age * 7))
+        .from((s, q) -> q
+          .where(p.gender == male && s.DogYears > 30)
+          .orderBy(s.name)));
+
+    auto result = query.run(data);
+
+    for(auto s : result) {
+      System.out.println(s.name + " : " + s.DogYears);
+    }
+  }
+
+  @Test
   public void simpleFunctionCallTest()
   {
-    Query<Person> query = Person.query( (p, q) -> q
+    auto query = Person.query( (p, q) -> q
       .where( p.age >= 0 && p.name.contains( "S" ) ) // using contains() method
       .orderBy( p.name ) );
     Iterable<Person> results = query.run( data );
@@ -71,7 +89,7 @@ public class TestMe
   @Test
   public void complexFunctionCallTest()
   {
-    Query<Person> query = Person.query( (p, q) -> q
+    auto query = Person.query( (p, q) -> q
       .where( p.age >= 0 && p.name.toLowerCase().contains( "s" ) ) // using toLowerCase() with contains()
       .orderBy( p.name ) );
     Iterable<Person> results = query.run( data );
@@ -90,7 +108,7 @@ public class TestMe
   @Test
   public void complexFunctionCallTest2()
   {
-    Query<Person> query = Person.query( (p, q) -> q
+    auto query = Person.query( (p, q) -> q
       .where( p.age - 10 >= 0 && p.name.toLowerCase().contains( "s" ) ) // using toLowerCase() with contains()
       .orderBy( p.name ) );
     Iterable<Person> results = query.run( data );
@@ -107,7 +125,7 @@ public class TestMe
   @Test
   public void extensionMethodFunctionCallTest()
   {
-    Query<Person> query = Person.query( (p, q) -> q
+    auto query = Person.query( (p, q) -> q
       .where( p.name.in("Skeeter", "Smokey") ) // using extension method MyComparableExt#in(...)
       .orderBy( p.name ) );
     List<Person> results = query.run( data );
@@ -123,7 +141,7 @@ public class TestMe
   {
     Numbers nums = new Numbers( (byte)1, (short)1, 1, 1, 1.1f, 1.2, 'a' );
     List<Numbers> numData = Collections.singletonList( nums );
-    Query<Numbers> query = Numbers.query( (p, q) -> q.where( p._byte + 2 == 3 ) );
+    Query<Numbers> query = Numbers.query( ( p, q) -> q.where( p._byte + 2 == 3 ) );
     List<Numbers> results = query.run( numData );
     assertEquals( 1, results.size() );
 

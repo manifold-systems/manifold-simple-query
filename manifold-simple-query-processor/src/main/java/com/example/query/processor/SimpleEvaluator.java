@@ -14,9 +14,9 @@ import java.util.function.Function;
  */
 public class SimpleEvaluator implements ExpressionVisitor
 {
-  @val Function<String, ? extends Entity> valueSupplier;
+  @val Function<String, ?> valueSupplier;
 
-  public SimpleEvaluator( Function<String, ? extends Entity> valueSupplier )
+  public SimpleEvaluator( Function<String, ?> valueSupplier )
   {
     this.valueSupplier = valueSupplier;
   }
@@ -29,7 +29,7 @@ public class SimpleEvaluator implements ExpressionVisitor
   @Override
   public Object visitReference( ReferenceExpression expr )
   {
-    Entity entityValue = valueSupplier.apply( expr.type );
+    Object entityValue = valueSupplier.apply( expr.receiverType );
     if( expr.memberKind == MemberKind.Method )
     {
       return ReflectUtil.method( entityValue, expr.memberName ).invoke();

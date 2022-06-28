@@ -1,9 +1,10 @@
 package com.example.query.api;
 
 import manifold.ext.rt.api.Self;
+import manifold.tuple.rt.api.Tuple;
 
 import java.util.function.BiFunction;
-import java.util.function.Predicate;
+import java.util.function.Function;
 
 /**
  * A root class for queryable entities. Note, the static methods here could be moved to Object via extension class so
@@ -25,5 +26,19 @@ public abstract class Entity
   public static Query<@Self Entity> query( BiFunction<@Self Entity, Query<@Self Entity>, Query<@Self Entity>> query  )
   {
     return query.apply( null, new Query( null ) );
+  }
+  public static <T extends Tuple> TupleQuery<T, @Self Entity> query( Function<@Self Entity, TupleQuery<T, @Self Entity>> query  )
+  {
+    return query.apply( null );
+  }
+
+  public <T extends Tuple> TupleQuery<T, @Self Entity> select( T selection  ) //todo: transform this call to select( T, Expression[] tupleExprs )
+  {
+    //noinspection unchecked
+    return new TupleQuery<>( (Class<T>)selection.getClass(), null );
+  }
+  public static <T extends Tuple> TupleQuery<T, @Self Entity> select( Class<T> selection, Expression[] tupleExprs )
+  {
+    return new TupleQuery<>( selection, tupleExprs );
   }
 }
