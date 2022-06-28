@@ -13,7 +13,7 @@ Iterable<Person> result = query.run(dataSource);
 
 Specify a 'select' clause using a type-safe [tuple expression](https://github.com/manifold-systems/manifold/tree/master/manifold-deps-parent/manifold-tuple):
 ```java
-var query = Person.query(p -> p
+auto query = Person.query(p -> p
 .select((p.name, DogYears: p.age * 7))
 .from((s, q) -> q
   .where(p.gender == male && s.DogYears > 30)
@@ -22,7 +22,11 @@ var query = Person.query(p -> p
 Access results as iterable [tuple](https://github.com/manifold-systems/manifold/tree/master/manifold-deps-parent/manifold-tuple)
 values mirroring the select clause.
 ```java
-var results = query.run(dataSource);
+auto result = query.run(data);
+
+for(auto s : result) {
+  System.out.println(s.name + " : " + s.DogYears);
+}
 ```
 
 The query API is very simple and not meant to be used for anything serious. This project primarily demonstrates usage of
