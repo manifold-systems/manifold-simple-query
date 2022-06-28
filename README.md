@@ -1,5 +1,5 @@
 # Manifold : Simple Query
-A purely experimental project to write type-safe SQL-like queries directly against POGO entity types that can target any
+A purely experimental project to write type-safe SQL-like queries directly against POJO entity types that can target any
 type of backend data source, whether it be Java Collections or SQL or what have you.
 ```java
 Query<Person> query = Person.query((p, q) -> q
